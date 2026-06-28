@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Libro de ventas</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --card2: #273449;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent-strong: #0ea5e9;
+    --ok: #22c55e;
+    --err: #ef4444;
+    --border: #334155;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header h1 { font-size: 1.15rem; margin: 0; }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .who { font-size: 0.8rem; color: var(--muted); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  main { max-width: 640px; margin: 0 auto; padding: 24px 20px 64px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  label { display: block; font-size: 0.8rem; color: var(--muted); margin: 0 0 6px; }
+  input, select {
+    width: 100%;
+    padding: 11px 12px;
+    border-radius: 9px;
+    border: 1px solid var(--border);
+    background: var(--card2);
+    color: var(--text);
+    font-size: 0.95rem;
+  }
+  input:focus, select:focus { outline: 2px solid var(--accent); border-color: transparent; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .full { grid-column: 1 / -1; }
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 9px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    padding: 11px 16px;
+    transition: filter .15s ease;
+  }
+  button:hover { filter: brightness(1.08); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-primary { background: var(--accent-strong); color: #00141f; width: 100%; }
+  .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-icon { background: var(--card2); color: var(--text); border: 1px solid var(--border); padding: 8px 12px; }
+  .total {
+    text-align: center;
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin: 4px 0 18px;
+    color: var(--accent);
+  }
+  .total small { display: block; font-size: 0.72rem; color: var(--muted); font-weight: 400; }
+  #status {
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-radius: 9px;
+    font-size: 0.88rem;
+    display: none;
+  }
+  #status.show { display: block; }
+  #status.ok { background: rgba(34,197,94,.12); border: 1px solid var(--ok); color: #bbf7d0; }
+  #status.err { background: rgba(239,68,68,.12); border: 1px solid var(--err); color: #fecaca; }
+  #status.info { background: rgba(56,189,248,.10); border: 1px solid var(--accent); color: #bae6fd; }
+  .hidden { display: none !important; }
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 50;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px;
+    max-width: 480px;
+    width: 100%;
+  }
+  .modal h2 { margin: 0 0 4px; font-size: 1.05rem; }
+  .modal p.hint { margin: 0 0 16px; font-size: 0.8rem; color: var(--muted); }
+  .field { margin-bottom: 14px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 6px; }
+  .modal-actions button { flex: 1; }
+  code { background: var(--card2); padding: 1px 6px; border-radius: 5px; font-size: 0.82em; }
+  .login-wrap { text-align: center; padding: 40px 0; }
+  .login-wrap p { color: var(--muted); margin-bottom: 24px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Libro de ventas</h1>
+  <div class="header-right">
+    <span class="who" id="who"></span>
+    <button class="btn-icon" id="settingsBtn" title="Configuración">⚙</button>
+    <button class="btn-icon hidden" id="logoutBtn" title="Cerrar sesión">Salir</button>
+  </div>
+</header>
+
+<main>
+  <!-- Login view -->
+  <section id="loginView" class="card login-wrap">
+    <p>Iniciá sesión con tu cuenta de Microsoft para registrar ventas en tu Excel de OneDrive.</p>
+    <button class="btn-primary" id="loginBtn" style="max-width:280px;margin:0 auto;">Iniciar sesión con Microsoft</button>
+  </section>
+
+  <!-- App view -->
+  <section id="appView" class="hidden">
+    <form id="saleForm" class="card">
+      <div class="total" id="totalDisplay">$ 0<small>Total de la venta</small></div>
+
+      <div class="row">
+        <div>
+          <label for="fecha">Fecha</label>
+          <input type="date" id="fecha" required />
+        </div>
+        <div>
+          <label for="cantidad">Cantidad</label>
+          <input type="number" id="cantidad" min="1" step="1" value="1" required />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="full">
+          <label for="producto">Producto</label>
+          <input type="text" id="producto" placeholder="Ej: Camiseta titular talle L" required />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="precio">Precio (unitario)</label>
+          <input type="number" id="precio" min="0" step="0.01" placeholder="0.00" required />
+        </div>
+        <div>
+          <label for="pago">Pago</label>
+          <select id="pago">
+            <option value="">— (opcional)</option>
+            <option value="Pago completo">Pago completo</option>
+            <option value="Seña">Seña</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="full">
+          <label for="cliente">Cliente</label>
+          <input type="text" id="cliente" placeholder="Nombre del cliente" />
+        </div>
+      </div>
+
+      <button type="submit" class="btn-primary" id="submitBtn">Registrar venta</button>
+      <div id="status"></div>
+    </form>
+  </section>
+</main>
+
+<!-- Settings modal -->
+<div class="modal-backdrop" id="settingsModal">
+  <div class="modal">
+    <h2>Configuración</h2>
+    <p class="hint">Se guarda en este navegador (localStorage). No se sube a ningún lado.</p>
+
+    <div class="field">
+      <label for="cfgClientId">Client ID (Azure App registration)</label>
+      <input type="text" id="cfgClientId" placeholder="00000000-0000-0000-0000-000000000000" />
+    </div>
+    <div class="field">
+      <label for="cfgFilePath">Ruta del Excel en OneDrive</label>
+      <input type="text" id="cfgFilePath" placeholder="/Documents/libro-de-ventas.xlsx" />
+    </div>
+    <div class="field">
+      <label for="cfgTable">Nombre de la tabla dentro del Excel</label>
+      <input type="text" id="cfgTable" placeholder="Ventas" />
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-ghost" id="cfgCancel">Cancelar</button>
+      <button class="btn-primary" id="cfgSave">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MSAL.js via CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.39.0/lib/msal-browser.min.js"
+        integrity="sha384-HtsDY8wVihpnviltxuJhKpX0ahqMUgvnzrXcW39KBNui4JooW+YJb1YxvQmNoFDZ"
+        crossorigin="anonymous"></script>
+<script>
+(function () {
+  "use strict";
+
+  // ---------- Config (localStorage) ----------
+  var CFG_KEY = "libroVentasConfig";
+  function loadConfig() {
+    try { return JSON.parse(localStorage.getItem(CFG_KEY)) || {}; }
+    catch (e) { return {}; }
+  }
+  function saveConfig(cfg) { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
+  var config = loadConfig();
+
+  // redirectUri = origin + pathname (sin querystring ni hash).
+  // En GitHub Pages será https://<usuario>.github.io/libro-de-ventas/
+  // Esa URL EXACTA (con la barra final) debe estar registrada como SPA en Azure.
+  var REDIRECT_URI = window.location.origin + window.location.pathname;
+  var SCOPES = ["User.Read", "Files.ReadWrite"];
+
+  // ---------- DOM ----------
+  var $ = function (id) { return document.getElementById(id); };
+  var loginView = $("loginView"), appView = $("appView");
+  var statusEl = $("status");
+
+  function showStatus(msg, kind) {
+    statusEl.textContent = msg;
+    statusEl.className = "show " + (kind || "info");
+  }
+  function clearStatus() { statusEl.className = ""; statusEl.textContent = ""; }
+
+  // ---------- MSAL ----------
+  var msalInstance = null;
+  var account = null;
+
+  function buildMsal() {
+    if (!config.clientId) return null;
+    return new msal.PublicClientApplication({
+      auth: {
+        clientId: config.clientId,
+        authority: "https://login.microsoftonline.com/common",
+        redirectUri: REDIRECT_URI
+      },
+      cache: { cacheLocation: "localStorage", storeAuthStateInCookie: false }
+    });
+  }
+
+  function refreshLoginUI() {
+    if (account) {
+      loginView.classList.add("hidden");
+      appView.classList.remove("hidden");
+      $("logoutBtn").classList.remove("hidden");
+      $("who").textContent = account.username || "";
+    } else {
+      loginView.classList.remove("hidden");
+      appView.classList.add("hidden");
+      $("logoutBtn").classList.add("hidden");
+      $("who").textContent = "";
+    }
+  }
+
+  async function initAuth() {
+    msalInstance = buildMsal();
+    if (!msalInstance) {
+      // Sin Client ID configurado: forzar configuración.
+      showStatusGlobal("Configurá el Client ID en ⚙ para poder iniciar sesión.");
+      return;
+    }
+    try {
+      var resp = await msalInstance.handleRedirectPromise();
+      if (resp && resp.account) {
+        account = resp.account;
+      } else {
+        var accts = msalInstance.getAllAccounts();
+        if (accts.length > 0) account = accts[0];
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    refreshLoginUI();
+  }
+
+  function showStatusGlobal(msg) {
+    // status visible incluso en login view
+    loginView.classList.remove("hidden");
+    var p = loginView.querySelector("p");
+    if (p) p.textContent = msg;
+  }
+
+  async function login() {
+    if (!msalInstance) { openSettings(); return; }
+    try {
+      await msalInstance.loginRedirect({ scopes: SCOPES });
+    } catch (e) {
+      console.error(e);
+      alert("Error al iniciar sesión: " + e.message);
+    }
+  }
+
+  function logout() {
+    if (!msalInstance || !account) return;
+    msalInstance.logoutRedirect({ account: account });
+  }
+
+  async function getToken() {
+    var request = { scopes: SCOPES, account: account };
+    try {
+      var resp = await msalInstance.acquireTokenSilent(request);
+      return resp.accessToken;
+    } catch (e) {
+      // Fallback interactivo
+      await msalInstance.acquireTokenRedirect(request);
+      return null;
+    }
+  }
+
+  // ---------- Graph: agregar fila a la tabla ----------
+  function graphAddRowUrl() {
+    // Path absoluto: /me/drive/root:/<ruta>:/workbook/tables/<tabla>/rows/add
+    var path = (config.filePath || "").replace(/^\//, "");
+    var table = encodeURIComponent(config.tableName || "Ventas");
+    return "https://graph.microsoft.com/v1.0/me/drive/root:/" +
+           path + ":/workbook/tables/" + table + "/rows/add";
+  }
+
+  async function addSaleRow(values) {
+    var token = await getToken();
+    if (!token) return; // redirigió a login
+    var resp = await fetch(graphAddRowUrl(), {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ values: [values] })
+    });
+    if (!resp.ok) {
+      var detail = await resp.text();
+      throw new Error("Graph " + resp.status + ": " + detail);
+    }
+    return resp.json();
+  }
+
+  // ---------- Form ----------
+  function recalcTotal() {
+    var cant = parseFloat($("cantidad").value) || 0;
+    var precio = parseFloat($("precio").value) || 0;
+    var total = cant * precio;
+    $("totalDisplay").innerHTML =
+      "$ " + total.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) +
+      "<small>Total de la venta</small>";
+  }
+
+  function todayISO() {
+    var d = new Date();
+    var off = d.getTimezoneOffset();
+    return new Date(d.getTime() - off * 60000).toISOString().slice(0, 10);
+  }
+
+  async function onSubmit(e) {
+    e.preventDefault();
+    clearStatus();
+
+    if (!config.filePath || !config.tableName) {
+      showStatus("Falta configurar la ruta del Excel y/o el nombre de la tabla (⚙).", "err");
+      return;
+    }
+
+    var cant = parseFloat($("cantidad").value) || 0;
+    var precio = parseFloat($("precio").value) || 0;
+    // Orden de columnas en la tabla: Fecha · Producto · Cantidad · Precio · Cliente · Pago · Total
+    var row = [
+      $("fecha").value,
+      $("producto").value.trim(),
+      cant,
+      precio,
+      $("cliente").value.trim(),
+      $("pago").value,
+      cant * precio
+    ];
+
+    var btn = $("submitBtn");
+    btn.disabled = true;
+    showStatus("Guardando venta…", "info");
+    try {
+      await addSaleRow(row);
+      showStatus("✓ Venta registrada en el Excel.", "ok");
+      // Reset parcial: dejo fecha, limpio el resto.
+      $("producto").value = "";
+      $("cantidad").value = "1";
+      $("precio").value = "";
+      $("cliente").value = "";
+      $("pago").value = "";
+      recalcTotal();
+    } catch (err) {
+      console.error(err);
+      showStatus("Error al guardar: " + err.message, "err");
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // ---------- Settings modal ----------
+  function openSettings() {
+    $("cfgClientId").value = config.clientId || "";
+    $("cfgFilePath").value = config.filePath || "";
+    $("cfgTable").value = config.tableName || "";
+    $("settingsModal").classList.add("show");
+  }
+  function closeSettings() { $("settingsModal").classList.remove("show"); }
+
+  function saveSettings() {
+    var newClientId = $("cfgClientId").value.trim();
+    var clientChanged = newClientId !== (config.clientId || "");
+    config.clientId = newClientId;
+    config.filePath = $("cfgFilePath").value.trim();
+    config.tableName = $("cfgTable").value.trim() || "Ventas";
+    saveConfig(config);
+    closeSettings();
+    if (clientChanged) {
+      // El Client ID cambió: hay que reconstruir MSAL. Lo más simple es recargar.
+      location.reload();
+    } else {
+      showStatus("Configuración guardada.", "ok");
+    }
+  }
+
+  // ---------- Wire up ----------
+  document.addEventListener("DOMContentLoaded", function () {
+    $("fecha").value = todayISO();
+    recalcTotal();
+
+    $("loginBtn").addEventListener("click", login);
+    $("logoutBtn").addEventListener("click", logout);
+    $("settingsBtn").addEventListener("click", openSettings);
+    $("cfgCancel").addEventListener("click", closeSettings);
+    $("cfgSave").addEventListener("click", saveSettings);
+    $("settingsModal").addEventListener("click", function (e) {
+      if (e.target === $("settingsModal")) closeSettings();
+    });
+
+    $("cantidad").addEventListener("input", recalcTotal);
+    $("precio").addEventListener("input", recalcTotal);
+    $("saleForm").addEventListener("submit", onSubmit);
+
+    initAuth();
+  });
+})();
+</script>
+</body>
+</html>
