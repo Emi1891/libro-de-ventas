@@ -4,6 +4,15 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Libro de ventas</title>
+<!-- Instalable como app (agregar a pantalla de inicio) -->
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0f172a" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Libro de ventas" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png" />
 <style>
   :root {
     --bg: #0f172a;
@@ -129,6 +138,15 @@
   .modal-actions { display: flex; gap: 10px; margin-top: 6px; }
   .modal-actions button { flex: 1; }
   code { background: var(--card2); padding: 1px 6px; border-radius: 5px; font-size: 0.82em; }
+
+  /* En celular: apilar las filas de a dos columnas en una sola, e inputs más cómodos. */
+  @media (max-width: 520px) {
+    .row { grid-template-columns: 1fr; gap: 14px; }
+    main { padding: 18px 14px 56px; }
+    .card { padding: 16px; }
+    /* font-size 16px evita el zoom automático de iOS al tocar un input */
+    input, select { font-size: 16px; padding: 13px 12px; }
+  }
 </style>
 </head>
 <body>
