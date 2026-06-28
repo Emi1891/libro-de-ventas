@@ -348,6 +348,9 @@
   function saveConfig(cfg) { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
   var config = loadConfig();
 
+  // ¿El precio actual ya tiene aplicada la división por Seña? (para que no sea acumulable)
+  var senaAplicada = false;
+
   // ---------- DOM ----------
   var $ = function (id) { return document.getElementById(id); };
   var statusEl = $("status");
@@ -383,6 +386,34 @@
     }
     if (data.ok === false) throw new Error(data.error || "El servidor rechazó la venta");
     return data;
+  }
+
+  // ---------- Seña: dividir precio entre 2 (no acumulable) ----------
+  function leerPrecio() { return parseFloat($("precio").value) || 0; }
+  function setPrecio(v) { $("precio").value = Math.round(v * 100) / 100; }
+
+  // Cuando cambia el desplegable de Pago.
+  function onPagoChange() {
+    var esSena = $("pago").value === "Seña";
+    if (esSena && !senaAplicada) {
+      setPrecio(leerPrecio() / 2);  // dividir
+      senaAplicada = true;
+    } else if (!esSena && senaAplicada) {
+      setPrecio(leerPrecio() * 2);  // restaurar al total
+      senaAplicada = false;
+    }
+    recalcTotal();
+  }
+
+  // Cuando se fija un precio "base" nuevo (a mano o desde el menú de precios).
+  // El valor se trata como precio COMPLETO; si Seña está activa, se vuelve a dividir.
+  function onPrecioBaseChange() {
+    senaAplicada = false;
+    if ($("pago").value === "Seña") {
+      setPrecio(leerPrecio() / 2);
+      senaAplicada = true;
+    }
+    recalcTotal();
   }
 
   // ---------- Form ----------
@@ -450,6 +481,7 @@
       $("precio").value = "";
       $("cliente").value = "";
       $("pago").value = "";
+      senaAplicada = false;
       recalcTotal();
     } catch (err) {
       console.error(err);
@@ -515,13 +547,17 @@
     Array.prototype.forEach.call(document.querySelectorAll(".price-opt"), function (opt) {
       opt.addEventListener("click", function () {
         $("precio").value = opt.getAttribute("data-precio");
-        recalcTotal();
+        onPrecioBaseChange();  // precio base nuevo: divide si Seña está activa
         closePriceMenu();
       });
     });
     document.addEventListener("click", function (e) {
       if (!e.target.closest(".price-wrap")) closePriceMenu();
     });
+
+    // Seña / Pago completo y cambios manuales de precio.
+    $("pago").addEventListener("change", onPagoChange);
+    $("precio").addEventListener("change", onPrecioBaseChange); // al salir del campo (blur/enter)
   });
 })();
 </script>
