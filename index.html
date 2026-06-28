@@ -188,10 +188,16 @@
   .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
   .btn-icon { background: var(--card2); color: var(--text); border: 1px solid var(--border); padding: 8px 12px; }
   .total {
+    position: sticky;
+    top: var(--header-h, 60px);
+    z-index: 5;
+    background: var(--card);
     text-align: center;
     font-size: 1.4rem;
     font-weight: 700;
-    margin: 4px 0 18px;
+    margin: -20px 0 14px;   /* cancela el padding superior de la card */
+    padding: 14px 0 12px;
+    border-bottom: 1px solid var(--border);
     color: var(--accent);
   }
   .total small { display: block; font-size: 0.72rem; color: var(--muted); font-weight: 400; }
@@ -248,6 +254,7 @@
     .row { grid-template-columns: 1fr; gap: 14px; }
     main { padding: 18px 14px 56px; }
     .card { padding: 16px; }
+    .total { margin-top: -16px; }   /* coincide con el padding de la card en mobile */
     /* font-size 16px evita el zoom automático de iOS al tocar un input */
     input, select { font-size: 16px; padding: 13px 12px; }
   }
@@ -562,6 +569,14 @@
     $("fecha").value = todayISO();
     recalcTotal();
     refreshUI();
+
+    // Posicionar el total pegado justo debajo del header (alto variable).
+    function setHeaderH() {
+      var h = document.querySelector("header").offsetHeight;
+      document.documentElement.style.setProperty("--header-h", h + "px");
+    }
+    setHeaderH();
+    window.addEventListener("resize", setHeaderH);
 
     $("settingsBtn").addEventListener("click", openSettings);
     $("cfgCancel").addEventListener("click", closeSettings);
