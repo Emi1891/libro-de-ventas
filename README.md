@@ -93,6 +93,23 @@ La app queda en `https://<usuario>.github.io/libro-de-ventas/`.
 
 ---
 
+## Dar formato a la planilla (colores, moneda, fechas)
+
+El backend incluye una función `formatearHoja()` que pinta el encabezado, pone formato de
+**moneda** ($) a las columnas Precio y Total, formato de **fecha** a Fecha y Registrado, y filas
+alternadas con color. Se ejecuta sola la primera vez que se crea la hoja.
+
+Para aplicarla a una hoja que **ya tiene datos** (o si cambiaste los colores/formatos arriba del
+`Codigo.gs`):
+
+1. En el editor de Apps Script, en la barra de arriba elegí la función **`formatearHoja`** en el
+   desplegable de funciones.
+2. Tocá **Ejecutar (▶)**. (La primera vez te pide autorizar; aceptá.)
+3. Mirá la planilla: ya queda con formato. Las ventas nuevas heredan el formato solas.
+
+Podés cambiar a gusto los valores arriba del `Codigo.gs`: `FMT_MONEDA`, `FMT_FECHA`,
+`COLOR_ENCABEZADO`, etc. Después volvé a correr `formatearHoja`.
+
 ## Probar que el backend anda
 
 Pegá la URL `/exec` en el navegador (un GET): deberías ver
