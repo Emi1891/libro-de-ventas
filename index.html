@@ -59,6 +59,8 @@
   label { display: block; font-size: 0.8rem; color: var(--muted); margin: 0 0 6px; }
   input, select {
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
     padding: 11px 12px;
     border-radius: 9px;
     border: 1px solid var(--border);
@@ -66,8 +68,12 @@
     color: var(--text);
     font-size: 0.95rem;
   }
+  /* Safari/iOS le da a input[type=date] un ancho intrínseco que se pasa de la card.
+     Esto lo obliga a respetar el ancho de su contenedor. */
+  input[type="date"] { -webkit-appearance: none; appearance: none; }
   input:focus, select:focus { outline: 2px solid var(--accent); border-color: transparent; }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .row > * { min-width: 0; }
   .full { grid-column: 1 / -1; }
   button {
     cursor: pointer;
@@ -183,19 +189,33 @@
     <div class="row">
       <div class="full">
         <label for="producto">Producto</label>
-        <input type="text" id="producto" placeholder="Ej: Camiseta titular talle L" required />
+        <input type="text" id="producto" placeholder="Camiseta titular Uruguay" required />
       </div>
     </div>
 
     <div class="row">
       <div>
+        <label for="talle">Talle</label>
+        <select id="talle" required>
+          <option value="" disabled selected>— Elegí —</option>
+          <option value="S">S</option>
+          <option value="M">M</option>
+          <option value="L">L</option>
+          <option value="XL">XL</option>
+          <option value="XXL">XXL</option>
+        </select>
+      </div>
+      <div>
         <label for="precio">Precio (unitario)</label>
         <input type="number" id="precio" min="0" step="0.01" placeholder="0.00" required />
       </div>
-      <div>
+    </div>
+
+    <div class="row">
+      <div class="full">
         <label for="pago">Pago</label>
-        <select id="pago">
-          <option value="">— (opcional)</option>
+        <select id="pago" required>
+          <option value="" disabled selected>— Elegí —</option>
           <option value="Pago completo">Pago completo</option>
           <option value="Seña">Seña</option>
         </select>
@@ -326,6 +346,11 @@
     var precio = parseFloat($("precio").value) || 0;
     var vendedor = $("vendedor").value.trim();
 
+    // El talle se asocia al nombre del producto antes de mandarlo a Sheets.
+    var producto = $("producto").value.trim();
+    var talle = $("talle").value;
+    var productoConTalle = talle ? (producto + " - Talle " + talle) : producto;
+
     // Recordar el nombre del vendedor en este dispositivo.
     if (vendedor && vendedor !== config.vendedor) {
       config.vendedor = vendedor;
@@ -335,7 +360,7 @@
     var payload = {
       token: config.token || "",
       fecha: $("fecha").value,
-      producto: $("producto").value.trim(),
+      producto: productoConTalle,
       cantidad: cant,
       precio: precio,
       cliente: $("cliente").value.trim(),
@@ -352,6 +377,7 @@
       showStatus("✓ Venta registrada.", "ok");
       // Reset parcial: dejo fecha y vendedor, limpio el resto.
       $("producto").value = "";
+      $("talle").value = "";
       $("cantidad").value = "1";
       $("precio").value = "";
       $("cliente").value = "";
