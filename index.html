@@ -78,6 +78,10 @@
   /* Stepper de cantidad: input reducido + botones - y + a la derecha */
   .stepper { display: flex; gap: 8px; align-items: stretch; }
   .stepper input { flex: 1 1 auto; min-width: 0; text-align: center; }
+  /* Ocultar las flechitas nativas del input number (ya usamos los botones - y +) */
+  .stepper input::-webkit-outer-spin-button,
+  .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .stepper input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   .step-btn {
     flex: 0 0 42px;
     width: 42px;
