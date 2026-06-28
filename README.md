@@ -1,9 +1,18 @@
 # Libro de ventas
 
-App web estática (un solo `index.html`, sin build ni backend) para registrar ventas y
-agregarlas como filas a un archivo de **Excel en OneDrive** usando la **Microsoft Graph API**.
-El login se hace con **MSAL.js** (OAuth en el navegador, flujo SPA con PKCE). No hay servidor
-ni claves secretas: solo se usa el **Client ID público** de la app registrada en Azure.
+App web estática (un solo `index.html`, sin build) para registrar ventas. Cada venta se manda a
+un **Google Apps Script** que la agrega como fila a una **Google Sheet**.
+
+La gracia de este diseño: **tus socios NO se loguean ni comparten contraseña**. El Apps Script
+corre bajo **tu** cuenta de Google y es el único que escribe en la planilla. Tus socios solo abren
+la web y cargan la venta. No hay secretos en el navegador (la credencial vive del lado de Google).
+
+```
+Cualquiera abre la web  →  carga la venta  →  POST al Apps Script
+                                                    │  (corre como VOS)
+                                                    ▼
+                                         agrega la fila a tu Google Sheet
+```
 
 ## Campos de la venta
 
@@ -13,164 +22,95 @@ ni claves secretas: solo se usa el **Client ID público** de la app registrada e
 | Producto  | Descripción del producto                           |
 | Cantidad  | Unidades vendidas                                  |
 | Precio    | Precio **unitario**                                |
-| Cliente   | Nombre del cliente                                 |
+| Cliente   | Nombre del cliente (opcional)                      |
 | Pago      | Opcional: **"Seña"** o **"Pago completo"**         |
+| Vendedor  | Quién hizo la venta (cada uno pone su nombre)      |
 
-La app además calcula y guarda una columna **Total** (Cantidad × Precio), así que la tabla
-de Excel debe tener las columnas en este orden:
-
-```
-Fecha | Producto | Cantidad | Precio | Cliente | Pago | Total
-```
-
-> Si no querés la columna Total, eliminá su valor en `index.html` (función `onSubmit`,
-> el último elemento del array `row`) y la columna de la tabla.
+La app calcula además el **Total** (Cantidad × Precio) y el Apps Script guarda la fecha/hora en que
+se registró. La planilla termina con columnas:
+`Fecha | Producto | Cantidad | Precio | Cliente | Pago | Total | Vendedor | Registrado`.
 
 ---
 
-## 1. Preparar el Excel en OneDrive
+## 1. Crear la Google Sheet y el backend (Apps Script)
 
-1. Creá un archivo de Excel en tu OneDrive, por ejemplo `libro-de-ventas.xlsx`.
-2. Escribí los encabezados en la primera fila:
-   `Fecha | Producto | Cantidad | Precio | Cliente | Pago | Total`.
-3. Seleccioná esas celdas y convertilas en **Tabla** (Insertar › Tabla, con "La tabla tiene encabezados").
-4. Ponele un **nombre a la tabla** (Diseño de tabla › Nombre de la tabla), por ejemplo `Ventas`.
-   Ese nombre es el que vas a usar en la configuración de la app.
-5. Anotá la **ruta del archivo** dentro de tu OneDrive (ej: `/Documentos/libro-de-ventas.xlsx`).
+1. Entrá a <https://sheets.google.com> y creá una planilla nueva, ej. **"Libro de ventas"**.
+2. En el menú: **Extensiones › Apps Script**. Se abre el editor.
+3. Borrá el contenido de `Código.gs` y pegá el contenido de [`apps-script/Codigo.gs`](apps-script/Codigo.gs).
+4. Cambiá la línea `var TOKEN = 'CAMBIA-ESTE-TOKEN';` por un texto tuyo, ej. `var TOKEN = 'ventas-semsa-2026';`
+   (lo vas a usar igual en la app). Guardá (💾).
+5. Botón **Implementar › Nueva implementación**.
+   - Tipo (engranaje ⚙): **Aplicación web**.
+   - **Ejecutar como**: *Yo (tu cuenta)*.
+   - **Quién tiene acceso**: *Cualquier persona* (¡importante! así no piden login).
+   - **Implementar**. Autorizá los permisos cuando te lo pida (es tu propia planilla).
+6. Copiá la **URL de la aplicación web** (termina en `/exec`). Esa URL va en la app.
 
----
-
-## 2. Registrar la app en Azure (Microsoft Entra ID)
-
-1. Entrá a <https://portal.azure.com> › **Microsoft Entra ID** › **Registros de aplicaciones** › **Nuevo registro**.
-2. Nombre: `Libro de ventas` (el que quieras).
-3. Tipos de cuenta admitidos: **Cuentas en cualquier directorio organizativo y cuentas personales de Microsoft** (lo más flexible).
-4. En **URI de redirección**, elegí plataforma **Single-page application (SPA)** y dejá la URL
-   por ahora vacía o con `http://localhost:8000/` para pruebas locales (se ajusta luego, ver paso 5).
-5. Creá el registro y copiá el **Client ID (ID de aplicación)** que aparece en la página de resumen.
-6. Permisos de API: **Permisos de API › Agregar un permiso › Microsoft Graph › Permisos delegados**, y agregá:
-   - `Files.ReadWrite.All`  ← necesario para que los socios escriban en el Excel del dueño (archivo compartido)
-   - `User.Read`
-
-   Estos permisos delegados **no** requieren consentimiento de administrador.
-
-> Es una app **client-side**: el Client ID es público y va en el código. **No** se usa client secret.
+> Si después editás el código del Apps Script, tenés que hacer **Implementar › Administrar
+> implementaciones › Editar (lápiz) › Versión: Nueva versión › Implementar** para que los cambios
+> tomen efecto en la misma URL.
 
 ---
 
-## 3. Configurar la app (botón ⚙)
+## 2. Configurar la app (botón ⚙)
 
-Abrí la app y tocá el botón **⚙** (arriba a la derecha). Completá:
+Abrí la app y tocá **⚙** (arriba a la derecha). Completá:
 
-- **Client ID**: el ID de aplicación copiado de Azure.
-- **Ruta del Excel en OneDrive**: ej. `/Documentos/libro-de-ventas.xlsx` (relativa a la raíz de tu OneDrive).
-- **Nombre de la tabla**: el que le pusiste en Excel, ej. `Ventas`.
+- **URL del servidor**: la URL `/exec` que copiaste del Apps Script.
+- **Token**: el mismo texto que pusiste en `var TOKEN` del Apps Script.
+- **Tu nombre**: tu nombre como vendedor (se autocompleta en el formulario).
 
-La configuración se guarda en el `localStorage` de tu navegador (no se sube a ningún lado).
-Al cambiar el Client ID la app se recarga para reinicializar el login.
+Se guarda en el `localStorage` de tu navegador. Guardá y ya podés registrar ventas.
 
-Después, **Iniciar sesión con Microsoft**, aceptá los permisos, y ya podés registrar ventas.
+### Para tus socios
 
----
-
-## 3.b. Varios usuarios escribiendo en el mismo Excel (dueño + socios)
-
-El archivo vive en el OneDrive del **dueño**. Para que los socios escriban en **ese mismo
-archivo** (no en el suyo), la app lo direcciona por su **ID fijo** (`driveId` + `itemId`), no por
-"mi OneDrive". El flujo es:
-
-**Dueño (una sola vez):**
-1. Compartí el Excel con cada socio dándole permiso de **edición** (en OneDrive: botón Compartir →
-   agregá sus correos → "Puede editar"). Todos deben ser cuentas del mismo tenant (la ORT).
-2. En la app: cargá el **Client ID**, **iniciá sesión**, abrí ⚙, escribí la **ruta del Excel** y
-   el **nombre de la tabla**, y tocá **"Localizar"**. La app guarda el `driveId`/`itemId` del archivo.
-3. Tocá **"Copiar código para mis socios"** y mandales ese código (WhatsApp, mail, etc.).
-
-**Cada socio (una sola vez):**
-1. Abrí la app (la URL de GitHub Pages), abrí ⚙, pegá el código en **"Código de configuración"**
-   y tocá **"Importar"**. La app se recarga.
-2. **Iniciá sesión** con tu cuenta de la ORT y aceptá los permisos. Listo: ya podés registrar
-   ventas en el Excel del dueño.
-
-> Nota: si un socio ve un error `403 / accessDenied` al guardar, es porque el dueño todavía no le
-> compartió el archivo con permiso de edición (paso 1 del dueño).
+Cada socio, en su celular/compu, abre la misma URL de la app, toca ⚙ y pega **la misma URL del
+servidor y el mismo token**, y pone **su propio nombre**. Listo: cargan ventas sin loguearse ni
+tener acceso a la planilla. Pasales esos dos datos (URL + token) por WhatsApp.
 
 ---
 
-## 4. Probar localmente (opcional)
-
-Como MSAL necesita un origen real, serví la carpeta con un server estático:
+## 3. Deploy de la app a GitHub Pages
 
 ```bash
-# Python
-python -m http.server 8000
-# o Node
-npx serve .
-```
-
-Entrá a `http://localhost:8000/` y **registrá esa misma URL** (`http://localhost:8000/`) como
-URI de redirección SPA en Azure (paso 2.4).
-
----
-
-## 5. Deploy a GitHub Pages
-
-```bash
-git init
 git add .
-git commit -m "App de registro de ventas con sync a Excel/OneDrive"
-git branch -M main
+git commit -m "Libro de ventas con backend en Google Apps Script"
+git push
 ```
 
-Crear el repo y pushear:
+Si todavía no conectaste el repo remoto:
 
-- **Con GitHub CLI (`gh`):**
-  ```bash
-  gh repo create libro-de-ventas --public --source=. --push
-  ```
-
-- **Manual:** creá el repo `libro-de-ventas` en <https://github.com/new> (público, sin README), y:
-  ```bash
-  git remote add origin https://github.com/<usuario>/libro-de-ventas.git
-  git push -u origin main
-  ```
+```bash
+git remote add origin https://github.com/<usuario>/libro-de-ventas.git
+git push -u origin main
+```
 
 Activar Pages: en el repo, **Settings › Pages › Source = `main` / root** › Save.
-A los pocos segundos tu app estará en:
+La app queda en `https://<usuario>.github.io/libro-de-ventas/`.
 
-```
-https://<usuario>.github.io/libro-de-ventas/
-```
-
----
-
-## ⚠️ Detalle crítico del deploy: la URI de redirección
-
-La app usa `redirectUri = origin + pathname`. En GitHub Pages eso resuelve a:
-
-```
-https://<usuario>.github.io/libro-de-ventas/
-```
-
-Esa **URL exacta, con la barra final `/`**, es la que tenés que registrar como **URI de
-redirección (SPA)** en Azure (Registro de la app › Autenticación › Single-page application).
-
-- Entrá **siempre** por la URL terminada en `/` para que el login funcione
-  (`.../libro-de-ventas/`, no `.../libro-de-ventas`).
-- Si Azure rechaza la redirección (`AADSTS50011` u otro error de redirect URI), verificá que la
-  URI registrada coincida **carácter por carácter** con la barra de direcciones: protocolo
-  `https`, mayúsculas/minúsculas, y la barra final.
-
-Podés tener varias URIs de redirección registradas a la vez (ej. `http://localhost:8000/` para
-desarrollo y la de GitHub Pages para producción).
+> A diferencia del enfoque con Microsoft, acá **no** hay que registrar ninguna URL de redirección
+> en ningún lado: no hay login.
 
 ---
+
+## Probar que el backend anda
+
+Pegá la URL `/exec` en el navegador (un GET): deberías ver
+`{"ok":true,"msg":"Libro de ventas backend activo"}`. Si ves eso, está vivo.
+
+## Notas / seguridad
+
+- El **token** no es un secreto fuerte (viaja al navegador). Sirve como filtro básico para que no
+  cualquiera que adivine la URL pueda cargar basura. No publiques la URL del Apps Script.
+- Toda la lógica de escritura vive en el Apps Script (tu cuenta). La web es solo el formulario.
+- La Google Sheet la podés descargar como Excel `.xlsx` cuando quieras: **Archivo › Descargar ›
+  Microsoft Excel (.xlsx)**.
 
 ## Stack / restricciones
 
-- Sin frameworks, sin bundler, sin dependencias instaladas: **HTML + CSS + JS vanilla**.
-- **MSAL.js por CDN** (`msal-browser` 2.x).
-- App 100% client-side: en el repo solo va el **Client ID público**, nunca secretos ni backend.
+- Sin frameworks, sin bundler, sin dependencias: **HTML + CSS + JS vanilla**.
+- Backend: **Google Apps Script** (gratis, sin servidor que mantener).
+- En el repo no hay secretos ni claves.
 
 ## Licencia
 

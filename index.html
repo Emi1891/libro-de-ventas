@@ -93,6 +93,15 @@
   #status.ok { background: rgba(34,197,94,.12); border: 1px solid var(--ok); color: #bbf7d0; }
   #status.err { background: rgba(239,68,68,.12); border: 1px solid var(--err); color: #fecaca; }
   #status.info { background: rgba(56,189,248,.10); border: 1px solid var(--accent); color: #bae6fd; }
+  .banner {
+    background: rgba(56,189,248,.10);
+    border: 1px solid var(--accent);
+    color: #bae6fd;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 18px;
+    font-size: 0.88rem;
+  }
   .hidden { display: none !important; }
   .modal-backdrop {
     position: fixed; inset: 0;
@@ -111,6 +120,8 @@
     padding: 22px;
     max-width: 480px;
     width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
   }
   .modal h2 { margin: 0 0 4px; font-size: 1.05rem; }
   .modal p.hint { margin: 0 0 16px; font-size: 0.8rem; color: var(--muted); }
@@ -118,8 +129,6 @@
   .modal-actions { display: flex; gap: 10px; margin-top: 6px; }
   .modal-actions button { flex: 1; }
   code { background: var(--card2); padding: 1px 6px; border-radius: 5px; font-size: 0.82em; }
-  .login-wrap { text-align: center; padding: 40px 0; }
-  .login-wrap p { color: var(--muted); margin-bottom: 24px; }
 </style>
 </head>
 <body>
@@ -128,66 +137,67 @@
   <div class="header-right">
     <span class="who" id="who"></span>
     <button class="btn-icon" id="settingsBtn" title="Configuración">⚙</button>
-    <button class="btn-icon hidden" id="logoutBtn" title="Cerrar sesión">Salir</button>
   </div>
 </header>
 
 <main>
-  <!-- Login view -->
-  <section id="loginView" class="card login-wrap">
-    <p>Iniciá sesión con tu cuenta de Microsoft para registrar ventas en tu Excel de OneDrive.</p>
-    <button class="btn-primary" id="loginBtn" style="max-width:280px;margin:0 auto;">Iniciar sesión con Microsoft</button>
-  </section>
+  <div class="banner hidden" id="setupBanner">
+    Falta configurar la app. Tocá el botón <b>⚙</b> y pegá la URL del servidor (Apps Script).
+  </div>
 
-  <!-- App view -->
-  <section id="appView" class="hidden">
-    <form id="saleForm" class="card">
-      <div class="total" id="totalDisplay">$ 0<small>Total de la venta</small></div>
+  <form id="saleForm" class="card">
+    <div class="total" id="totalDisplay">$ 0<small>Total de la venta</small></div>
 
-      <div class="row">
-        <div>
-          <label for="fecha">Fecha</label>
-          <input type="date" id="fecha" required />
-        </div>
-        <div>
-          <label for="cantidad">Cantidad</label>
-          <input type="number" id="cantidad" min="1" step="1" value="1" required />
-        </div>
+    <div class="row">
+      <div>
+        <label for="fecha">Fecha</label>
+        <input type="date" id="fecha" required />
       </div>
-
-      <div class="row">
-        <div class="full">
-          <label for="producto">Producto</label>
-          <input type="text" id="producto" placeholder="Ej: Camiseta titular talle L" required />
-        </div>
+      <div>
+        <label for="cantidad">Cantidad</label>
+        <input type="number" id="cantidad" min="1" step="1" value="1" required />
       </div>
+    </div>
 
-      <div class="row">
-        <div>
-          <label for="precio">Precio (unitario)</label>
-          <input type="number" id="precio" min="0" step="0.01" placeholder="0.00" required />
-        </div>
-        <div>
-          <label for="pago">Pago</label>
-          <select id="pago">
-            <option value="">— (opcional)</option>
-            <option value="Pago completo">Pago completo</option>
-            <option value="Seña">Seña</option>
-          </select>
-        </div>
+    <div class="row">
+      <div class="full">
+        <label for="producto">Producto</label>
+        <input type="text" id="producto" placeholder="Ej: Camiseta titular talle L" required />
       </div>
+    </div>
 
-      <div class="row">
-        <div class="full">
-          <label for="cliente">Cliente</label>
-          <input type="text" id="cliente" placeholder="Nombre del cliente" />
-        </div>
+    <div class="row">
+      <div>
+        <label for="precio">Precio (unitario)</label>
+        <input type="number" id="precio" min="0" step="0.01" placeholder="0.00" required />
       </div>
+      <div>
+        <label for="pago">Pago</label>
+        <select id="pago">
+          <option value="">— (opcional)</option>
+          <option value="Pago completo">Pago completo</option>
+          <option value="Seña">Seña</option>
+        </select>
+      </div>
+    </div>
 
-      <button type="submit" class="btn-primary" id="submitBtn">Registrar venta</button>
-      <div id="status"></div>
-    </form>
-  </section>
+    <div class="row">
+      <div class="full">
+        <label for="cliente">Cliente</label>
+        <input type="text" id="cliente" placeholder="Nombre del cliente" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="full">
+        <label for="vendedor">Vendedor</label>
+        <input type="text" id="vendedor" placeholder="Tu nombre" />
+      </div>
+    </div>
+
+    <button type="submit" class="btn-primary" id="submitBtn">Registrar venta</button>
+    <div id="status"></div>
+  </form>
 </main>
 
 <!-- Settings modal -->
@@ -197,43 +207,16 @@
     <p class="hint">Se guarda en este navegador (localStorage). No se sube a ningún lado.</p>
 
     <div class="field">
-      <label for="cfgClientId">Client ID (Azure App registration)</label>
-      <input type="text" id="cfgClientId" placeholder="00000000-0000-0000-0000-000000000000" />
+      <label for="cfgUrl">URL del servidor (Apps Script Web App)</label>
+      <input type="text" id="cfgUrl" placeholder="https://script.google.com/macros/s/AKf.../exec" />
     </div>
     <div class="field">
-      <label for="cfgTable">Nombre de la tabla dentro del Excel</label>
-      <input type="text" id="cfgTable" placeholder="Ventas" />
-    </div>
-
-    <hr style="border:none;border-top:1px solid var(--border);margin:18px 0;">
-
-    <p class="hint" style="margin-bottom:10px;">
-      <b>Dueño del Excel:</b> escribí la ruta del archivo y tocá "Localizar archivo"
-      (tenés que estar logueado). Después compartí el código con tus socios.
-    </p>
-    <div class="field">
-      <label for="cfgFilePath">Ruta del Excel en OneDrive (solo para localizar)</label>
-      <div style="display:flex;gap:8px;">
-        <input type="text" id="cfgFilePath" placeholder="/Documentos/libro-de-ventas.xlsx" />
-        <button class="btn-icon" id="cfgResolve" type="button" style="white-space:nowrap;">Localizar</button>
-      </div>
-    </div>
-    <p class="hint" id="cfgFileInfo" style="margin:-6px 0 14px;color:var(--muted);"></p>
-
-    <hr style="border:none;border-top:1px solid var(--border);margin:18px 0;">
-
-    <p class="hint" style="margin-bottom:10px;">
-      <b>Socios:</b> pegá acá el código que te pasó el dueño y tocá "Importar".
-    </p>
-    <div class="field">
-      <label for="cfgShareCode">Código de configuración</label>
-      <div style="display:flex;gap:8px;">
-        <input type="text" id="cfgShareCode" placeholder="Pegá el código aquí…" />
-        <button class="btn-icon" id="cfgImport" type="button">Importar</button>
-      </div>
+      <label for="cfgToken">Token (el mismo que pusiste en el Apps Script)</label>
+      <input type="text" id="cfgToken" placeholder="Ej: ventas-2026" />
     </div>
     <div class="field">
-      <button class="btn-ghost" id="cfgCopyCode" type="button" style="width:100%;">Copiar código para mis socios</button>
+      <label for="cfgVendedor">Tu nombre (vendedor por defecto)</label>
+      <input type="text" id="cfgVendedor" placeholder="Ej: Emi" />
     </div>
 
     <div class="modal-actions">
@@ -243,10 +226,6 @@
   </div>
 </div>
 
-<!-- MSAL.js via CDN -->
-<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.39.0/lib/msal-browser.min.js"
-        integrity="sha384-HtsDY8wVihpnviltxuJhKpX0ahqMUgvnzrXcW39KBNui4JooW+YJb1YxvQmNoFDZ"
-        crossorigin="anonymous"></script>
 <script>
 (function () {
   "use strict";
@@ -260,17 +239,8 @@
   function saveConfig(cfg) { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
   var config = loadConfig();
 
-  // redirectUri = origin + pathname (sin querystring ni hash).
-  // En GitHub Pages será https://<usuario>.github.io/libro-de-ventas/
-  // Esa URL EXACTA (con la barra final) debe estar registrada como SPA en Azure.
-  var REDIRECT_URI = window.location.origin + window.location.pathname;
-  // Files.ReadWrite.All es necesario para escribir en un archivo COMPARTIDO por otra
-  // persona (el caso de los socios escribiendo en el Excel del dueño).
-  var SCOPES = ["User.Read", "Files.ReadWrite.All"];
-
   // ---------- DOM ----------
   var $ = function (id) { return document.getElementById(id); };
-  var loginView = $("loginView"), appView = $("appView");
   var statusEl = $("status");
 
   function showStatus(msg, kind) {
@@ -279,142 +249,26 @@
   }
   function clearStatus() { statusEl.className = ""; statusEl.textContent = ""; }
 
-  // ---------- MSAL ----------
-  var msalInstance = null;
-  var account = null;
-
-  function buildMsal() {
-    if (!config.clientId) return null;
-    return new msal.PublicClientApplication({
-      auth: {
-        clientId: config.clientId,
-        authority: "https://login.microsoftonline.com/common",
-        redirectUri: REDIRECT_URI
-      },
-      cache: { cacheLocation: "localStorage", storeAuthStateInCookie: false }
-    });
+  function refreshUI() {
+    $("setupBanner").classList.toggle("hidden", !!config.url);
+    $("who").textContent = config.vendedor || "";
+    if (config.vendedor && !$("vendedor").value) $("vendedor").value = config.vendedor;
   }
 
-  function refreshLoginUI() {
-    if (account) {
-      loginView.classList.add("hidden");
-      appView.classList.remove("hidden");
-      $("logoutBtn").classList.remove("hidden");
-      $("who").textContent = account.username || "";
-    } else {
-      loginView.classList.remove("hidden");
-      appView.classList.add("hidden");
-      $("logoutBtn").classList.add("hidden");
-      $("who").textContent = "";
-    }
-  }
-
-  async function initAuth() {
-    msalInstance = buildMsal();
-    if (!msalInstance) {
-      // Sin Client ID configurado: forzar configuración.
-      showStatusGlobal("Configurá el Client ID en ⚙ para poder iniciar sesión.");
-      return;
-    }
-    try {
-      var resp = await msalInstance.handleRedirectPromise();
-      if (resp && resp.account) {
-        account = resp.account;
-      } else {
-        var accts = msalInstance.getAllAccounts();
-        if (accts.length > 0) account = accts[0];
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    refreshLoginUI();
-  }
-
-  function showStatusGlobal(msg) {
-    // status visible incluso en login view
-    loginView.classList.remove("hidden");
-    var p = loginView.querySelector("p");
-    if (p) p.textContent = msg;
-  }
-
-  async function login() {
-    if (!msalInstance) { openSettings(); return; }
-    try {
-      await msalInstance.loginRedirect({ scopes: SCOPES });
-    } catch (e) {
-      console.error(e);
-      alert("Error al iniciar sesión: " + e.message);
-    }
-  }
-
-  function logout() {
-    if (!msalInstance || !account) return;
-    msalInstance.logoutRedirect({ account: account });
-  }
-
-  async function getToken() {
-    var request = { scopes: SCOPES, account: account };
-    try {
-      var resp = await msalInstance.acquireTokenSilent(request);
-      return resp.accessToken;
-    } catch (e) {
-      // Fallback interactivo
-      await msalInstance.acquireTokenRedirect(request);
-      return null;
-    }
-  }
-
-  // ---------- Graph: agregar fila a la tabla ----------
-  function graphAddRowUrl() {
-    var table = encodeURIComponent(config.tableName || "Ventas");
-    // Preferido: dirigir el archivo por su ID fijo (driveId + itemId). Así apunta
-    // siempre al MISMO archivo (el del dueño), sin importar quién esté logueado.
-    if (config.driveId && config.itemId) {
-      return "https://graph.microsoft.com/v1.0/drives/" + config.driveId +
-             "/items/" + config.itemId +
-             "/workbook/tables/" + table + "/rows/add";
-    }
-    // Fallback (solo funciona para el dueño): por ruta en su propio OneDrive.
-    var path = (config.filePath || "").replace(/^\//, "");
-    return "https://graph.microsoft.com/v1.0/me/drive/root:/" +
-           path + ":/workbook/tables/" + table + "/rows/add";
-  }
-
-  // Resuelve una ruta del OneDrive del usuario logueado a driveId + itemId.
-  async function resolveFile(path) {
-    var token = await getToken();
-    if (!token) return null;
-    var clean = path.replace(/^\//, "");
-    var url = "https://graph.microsoft.com/v1.0/me/drive/root:/" + clean;
-    var resp = await fetch(url, { headers: { "Authorization": "Bearer " + token } });
-    if (!resp.ok) {
-      var detail = await resp.text();
-      throw new Error("Graph " + resp.status + ": " + detail);
-    }
-    var item = await resp.json();
-    return {
-      driveId: item.parentReference && item.parentReference.driveId,
-      itemId: item.id,
-      name: item.name
-    };
-  }
-
-  async function addSaleRow(values) {
-    var token = await getToken();
-    if (!token) return; // redirigió a login
-    var resp = await fetch(graphAddRowUrl(), {
+  // ---------- Enviar venta al Apps Script ----------
+  async function sendSale(payload) {
+    // Content-Type text/plain evita el "preflight" CORS de Apps Script.
+    var resp = await fetch(config.url, {
       method: "POST",
-      headers: {
-        "Authorization": "Bearer " + token,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ values: [values] })
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload),
+      redirect: "follow"
     });
-    if (!resp.ok) {
-      var detail = await resp.text();
-      throw new Error("Graph " + resp.status + ": " + detail);
-    }
-    return resp.json();
+    var data;
+    try { data = await resp.json(); } catch (e) { data = null; }
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    if (data && data.ok === false) throw new Error(data.error || "El servidor rechazó la venta");
+    return data;
   }
 
   // ---------- Form ----------
@@ -437,32 +291,40 @@
     e.preventDefault();
     clearStatus();
 
-    var haveFile = (config.driveId && config.itemId) || config.filePath;
-    if (!haveFile || !config.tableName) {
-      showStatus("Falta configurar el archivo y/o el nombre de la tabla (⚙).", "err");
+    if (!config.url) {
+      showStatus("Falta configurar la URL del servidor (⚙).", "err");
       return;
     }
 
     var cant = parseFloat($("cantidad").value) || 0;
     var precio = parseFloat($("precio").value) || 0;
-    // Orden de columnas en la tabla: Fecha · Producto · Cantidad · Precio · Cliente · Pago · Total
-    var row = [
-      $("fecha").value,
-      $("producto").value.trim(),
-      cant,
-      precio,
-      $("cliente").value.trim(),
-      $("pago").value,
-      cant * precio
-    ];
+    var vendedor = $("vendedor").value.trim();
+
+    // Recordar el nombre del vendedor en este dispositivo.
+    if (vendedor && vendedor !== config.vendedor) {
+      config.vendedor = vendedor;
+      saveConfig(config);
+    }
+
+    var payload = {
+      token: config.token || "",
+      fecha: $("fecha").value,
+      producto: $("producto").value.trim(),
+      cantidad: cant,
+      precio: precio,
+      cliente: $("cliente").value.trim(),
+      pago: $("pago").value,
+      total: cant * precio,
+      vendedor: vendedor
+    };
 
     var btn = $("submitBtn");
     btn.disabled = true;
     showStatus("Guardando venta…", "info");
     try {
-      await addSaleRow(row);
-      showStatus("✓ Venta registrada en el Excel.", "ok");
-      // Reset parcial: dejo fecha, limpio el resto.
+      await sendSale(payload);
+      showStatus("✓ Venta registrada.", "ok");
+      // Reset parcial: dejo fecha y vendedor, limpio el resto.
       $("producto").value = "";
       $("cantidad").value = "1";
       $("precio").value = "";
@@ -478,129 +340,33 @@
   }
 
   // ---------- Settings modal ----------
-  function renderFileInfo() {
-    var el = $("cfgFileInfo");
-    if (config.driveId && config.itemId) {
-      el.textContent = "✓ Archivo localizado" + (config.fileName ? (": " + config.fileName) : "") + ".";
-      el.style.color = "var(--ok)";
-    } else {
-      el.textContent = "Aún no localizado.";
-      el.style.color = "var(--muted)";
-    }
-  }
-
   function openSettings() {
-    $("cfgClientId").value = config.clientId || "";
-    $("cfgFilePath").value = config.filePath || "";
-    $("cfgTable").value = config.tableName || "";
-    $("cfgShareCode").value = "";
-    renderFileInfo();
+    $("cfgUrl").value = config.url || "";
+    $("cfgToken").value = config.token || "";
+    $("cfgVendedor").value = config.vendedor || "";
     $("settingsModal").classList.add("show");
   }
   function closeSettings() { $("settingsModal").classList.remove("show"); }
 
   function saveSettings() {
-    var newClientId = $("cfgClientId").value.trim();
-    var clientChanged = newClientId !== (config.clientId || "");
-    config.clientId = newClientId;
-    config.filePath = $("cfgFilePath").value.trim();
-    config.tableName = $("cfgTable").value.trim() || "Ventas";
+    config.url = $("cfgUrl").value.trim();
+    config.token = $("cfgToken").value.trim();
+    config.vendedor = $("cfgVendedor").value.trim();
     saveConfig(config);
     closeSettings();
-    if (clientChanged) {
-      // El Client ID cambió: hay que reconstruir MSAL. Lo más simple es recargar.
-      location.reload();
-    } else {
-      showStatus("Configuración guardada.", "ok");
-    }
-  }
-
-  // Dueño: localizar el archivo por ruta y guardar driveId + itemId.
-  async function onResolve() {
-    if (!account) { alert("Primero iniciá sesión para poder localizar el archivo."); return; }
-    var path = $("cfgFilePath").value.trim();
-    if (!path) { alert("Escribí la ruta del Excel."); return; }
-    var info = $("cfgFileInfo");
-    info.textContent = "Buscando…"; info.style.color = "var(--muted)";
-    try {
-      var r = await resolveFile(path);
-      if (!r) return; // redirigió a login
-      config.clientId = $("cfgClientId").value.trim();
-      config.filePath = path;
-      config.tableName = $("cfgTable").value.trim() || "Ventas";
-      config.driveId = r.driveId;
-      config.itemId = r.itemId;
-      config.fileName = r.name;
-      saveConfig(config);
-      renderFileInfo();
-    } catch (e) {
-      console.error(e);
-      info.textContent = "No se encontró: " + e.message;
-      info.style.color = "var(--err)";
-    }
-  }
-
-  // Dueño: generar un código con lo necesario para que los socios lo importen.
-  function copyShareCode() {
-    if (!config.clientId || !config.driveId || !config.itemId) {
-      alert("Primero cargá el Client ID y localizá el archivo (botón Localizar).");
-      return;
-    }
-    var payload = {
-      clientId: config.clientId,
-      driveId: config.driveId,
-      itemId: config.itemId,
-      tableName: config.tableName || "Ventas",
-      fileName: config.fileName || ""
-    };
-    var code = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-    navigator.clipboard.writeText(code).then(function () {
-      alert("Código copiado. Pasáselo a tus socios (WhatsApp, mail, etc.).");
-    }, function () {
-      window.prompt("Copiá este código y pasáselo a tus socios:", code);
-    });
-  }
-
-  // Socio: importar el código del dueño.
-  function importShareCode() {
-    var code = $("cfgShareCode").value.trim();
-    if (!code) { alert("Pegá el código primero."); return; }
-    try {
-      var data = JSON.parse(decodeURIComponent(escape(atob(code))));
-      var clientChanged = (data.clientId || "") !== (config.clientId || "");
-      config.clientId = data.clientId || "";
-      config.driveId = data.driveId || "";
-      config.itemId = data.itemId || "";
-      config.tableName = data.tableName || "Ventas";
-      config.fileName = data.fileName || "";
-      saveConfig(config);
-      $("cfgClientId").value = config.clientId;
-      $("cfgTable").value = config.tableName;
-      renderFileInfo();
-      if (clientChanged) {
-        alert("Configuración importada. La app se va a recargar; después iniciá sesión.");
-        location.reload();
-      } else {
-        alert("Configuración importada correctamente.");
-      }
-    } catch (e) {
-      alert("El código no es válido. Pedile al dueño que lo genere de nuevo.");
-    }
+    refreshUI();
+    showStatus("Configuración guardada.", "ok");
   }
 
   // ---------- Wire up ----------
   document.addEventListener("DOMContentLoaded", function () {
     $("fecha").value = todayISO();
     recalcTotal();
+    refreshUI();
 
-    $("loginBtn").addEventListener("click", login);
-    $("logoutBtn").addEventListener("click", logout);
     $("settingsBtn").addEventListener("click", openSettings);
     $("cfgCancel").addEventListener("click", closeSettings);
     $("cfgSave").addEventListener("click", saveSettings);
-    $("cfgResolve").addEventListener("click", onResolve);
-    $("cfgCopyCode").addEventListener("click", copyShareCode);
-    $("cfgImport").addEventListener("click", importShareCode);
     $("settingsModal").addEventListener("click", function (e) {
       if (e.target === $("settingsModal")) closeSettings();
     });
@@ -608,8 +374,6 @@
     $("cantidad").addEventListener("input", recalcTotal);
     $("precio").addEventListener("input", recalcTotal);
     $("saleForm").addEventListener("submit", onSubmit);
-
-    initAuth();
   });
 })();
 </script>
