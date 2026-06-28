@@ -127,6 +127,52 @@
     font-size: 0.9rem;
   }
   .price-opt:hover, .price-opt:active { background: var(--card2); color: var(--accent); }
+  /* Desplegable propio (Pago) */
+  .select-wrap { position: relative; }
+  .select-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: var(--card2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 11px 12px;
+    font-size: 0.95rem;
+    font-weight: 400;
+    text-align: left;
+  }
+  .select-btn .caret { color: var(--accent); font-size: 0.8rem; }
+  .select-btn.placeholder #pagoLabel { color: var(--muted); }
+  .select-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 6px;
+    z-index: 30;
+    display: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,.45);
+  }
+  .select-menu.show { display: block; }
+  .select-opt {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    color: var(--text);
+    border: none;
+    padding: 11px 12px;
+    border-radius: 7px;
+    font-weight: 500;
+    font-size: 0.9rem;
+  }
+  .select-opt:hover, .select-opt:active { background: var(--card2); color: var(--accent); }
   button {
     cursor: pointer;
     border: none;
@@ -281,12 +327,17 @@
 
     <div class="row">
       <div class="full">
-        <label for="pago">Pago</label>
-        <select id="pago" required>
-          <option value="" disabled selected>— Elegí —</option>
-          <option value="Pago completo">Pago completo</option>
-          <option value="Seña">Seña</option>
-        </select>
+        <label for="pagoBtn">Pago</label>
+        <div class="select-wrap" id="pagoWrap">
+          <button type="button" class="select-btn placeholder" id="pagoBtn">
+            <span id="pagoLabel">— Elegí —</span><span class="caret">▾</span>
+          </button>
+          <div class="select-menu" id="pagoMenu">
+            <button type="button" class="select-opt" data-val="Pago completo">Pago completo</button>
+            <button type="button" class="select-opt" data-val="Seña">Seña (divide el precio ÷2)</button>
+          </div>
+          <input type="hidden" id="pago" />
+        </div>
       </div>
     </div>
 
@@ -348,9 +399,6 @@
   function saveConfig(cfg) { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
   var config = loadConfig();
 
-  // ¿El precio actual ya tiene aplicada la división por Seña? (para que no sea acumulable)
-  var senaAplicada = false;
-
   // ---------- DOM ----------
   var $ = function (id) { return document.getElementById(id); };
   var statusEl = $("status");
@@ -388,32 +436,25 @@
     return data;
   }
 
-  // ---------- Seña: dividir precio entre 2 (no acumulable) ----------
+  // ---------- Pago (desplegable propio) ----------
   function leerPrecio() { return parseFloat($("precio").value) || 0; }
   function setPrecio(v) { $("precio").value = Math.round(v * 100) / 100; }
 
-  // Cuando cambia el desplegable de Pago.
-  function onPagoChange() {
-    var esSena = $("pago").value === "Seña";
-    if (esSena && !senaAplicada) {
-      setPrecio(leerPrecio() / 2);  // dividir
-      senaAplicada = true;
-    } else if (!esSena && senaAplicada) {
-      setPrecio(leerPrecio() * 2);  // restaurar al total
-      senaAplicada = false;
-    }
-    recalcTotal();
+  function setPago(val) {
+    $("pago").value = val;
+    $("pagoLabel").textContent = val || "— Elegí —";
+    $("pagoBtn").classList.toggle("placeholder", !val);
   }
 
-  // Cuando se fija un precio "base" nuevo (a mano o desde el menú de precios).
-  // El valor se trata como precio COMPLETO; si Seña está activa, se vuelve a dividir.
-  function onPrecioBaseChange() {
-    senaAplicada = false;
-    if ($("pago").value === "Seña") {
+  // Cada vez que se elige una opción de pago.
+  // Seña divide el precio actual ÷2 (cada vez que se toca, incluso si ya estaba).
+  // Escribir/cambiar el precio NO divide: solo lo hace este clic.
+  function elegirPago(val) {
+    setPago(val);
+    if (val === "Seña") {
       setPrecio(leerPrecio() / 2);
-      senaAplicada = true;
+      recalcTotal();
     }
-    recalcTotal();
   }
 
   // ---------- Form ----------
@@ -438,6 +479,12 @@
 
     if (!config.url) {
       showStatus("Falta configurar la URL del servidor (⚙).", "err");
+      return;
+    }
+
+    // Pago es obligatorio (validación manual: ahora es un desplegable propio).
+    if (!$("pago").value) {
+      showStatus("Elegí una opción de pago.", "err");
       return;
     }
 
@@ -480,8 +527,7 @@
       $("cantidad").value = "1";
       $("precio").value = "";
       $("cliente").value = "";
-      $("pago").value = "";
-      senaAplicada = false;
+      setPago("");
       recalcTotal();
     } catch (err) {
       console.error(err);
@@ -547,17 +593,29 @@
     Array.prototype.forEach.call(document.querySelectorAll(".price-opt"), function (opt) {
       opt.addEventListener("click", function () {
         $("precio").value = opt.getAttribute("data-precio");
-        onPrecioBaseChange();  // precio base nuevo: divide si Seña está activa
+        recalcTotal();        // fijar precio NO divide; solo lo hace tocar "Seña"
         closePriceMenu();
       });
     });
-    document.addEventListener("click", function (e) {
-      if (!e.target.closest(".price-wrap")) closePriceMenu();
+
+    // Desplegable propio de Pago.
+    function closePagoMenu() { $("pagoMenu").classList.remove("show"); }
+    $("pagoBtn").addEventListener("click", function (e) {
+      e.stopPropagation();
+      $("pagoMenu").classList.toggle("show");
+    });
+    Array.prototype.forEach.call(document.querySelectorAll(".select-opt"), function (opt) {
+      opt.addEventListener("click", function () {
+        elegirPago(opt.getAttribute("data-val"));
+        closePagoMenu();
+      });
     });
 
-    // Seña / Pago completo y cambios manuales de precio.
-    $("pago").addEventListener("change", onPagoChange);
-    $("precio").addEventListener("change", onPrecioBaseChange); // al salir del campo (blur/enter)
+    // Cerrar menús al tocar afuera.
+    document.addEventListener("click", function (e) {
+      if (!e.target.closest(".price-wrap")) closePriceMenu();
+      if (!e.target.closest("#pagoWrap")) closePagoMenu();
+    });
   });
 })();
 </script>
