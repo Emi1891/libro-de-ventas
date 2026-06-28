@@ -6,7 +6,7 @@
 <title>Libro de ventas</title>
 <!-- Instalable como app (agregar a pantalla de inicio) -->
 <link rel="manifest" href="manifest.json" />
-<meta name="theme-color" content="#D4A835" />
+<meta name="theme-color" content="#0a0a0a" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -15,16 +15,16 @@
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png" />
 <style>
   :root {
-    --bg: #0f172a;
-    --card: #1e293b;
-    --card2: #273449;
-    --text: #e2e8f0;
-    --muted: #94a3b8;
-    --accent: #38bdf8;
-    --accent-strong: #0ea5e9;
+    --bg: #0a0a0a;
+    --card: #161616;
+    --card2: #222222;
+    --text: #ededed;
+    --muted: #9a9a9a;
+    --accent: #D4A835;
+    --accent-strong: #e0b73f;
     --ok: #22c55e;
     --err: #ef4444;
-    --border: #334155;
+    --border: #333333;
   }
   * { box-sizing: border-box; }
   body {
@@ -80,7 +80,7 @@
   }
   button:hover { filter: brightness(1.08); }
   button:disabled { opacity: .5; cursor: not-allowed; }
-  .btn-primary { background: var(--accent-strong); color: #00141f; width: 100%; }
+  .btn-primary { background: var(--accent-strong); color: #1a1300; width: 100%; }
   .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
   .btn-icon { background: var(--card2); color: var(--text); border: 1px solid var(--border); padding: 8px 12px; }
   .total {
@@ -101,11 +101,11 @@
   #status.show { display: block; }
   #status.ok { background: rgba(34,197,94,.12); border: 1px solid var(--ok); color: #bbf7d0; }
   #status.err { background: rgba(239,68,68,.12); border: 1px solid var(--err); color: #fecaca; }
-  #status.info { background: rgba(56,189,248,.10); border: 1px solid var(--accent); color: #bae6fd; }
+  #status.info { background: rgba(212,168,53,.12); border: 1px solid var(--accent); color: #f3e0a3; }
   .banner {
-    background: rgba(56,189,248,.10);
+    background: rgba(212,168,53,.12);
     border: 1px solid var(--accent);
-    color: #bae6fd;
+    color: #f3e0a3;
     border-radius: 10px;
     padding: 12px 14px;
     margin-bottom: 18px;
