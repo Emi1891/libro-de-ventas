@@ -201,12 +201,39 @@
       <input type="text" id="cfgClientId" placeholder="00000000-0000-0000-0000-000000000000" />
     </div>
     <div class="field">
-      <label for="cfgFilePath">Ruta del Excel en OneDrive</label>
-      <input type="text" id="cfgFilePath" placeholder="/Documents/libro-de-ventas.xlsx" />
-    </div>
-    <div class="field">
       <label for="cfgTable">Nombre de la tabla dentro del Excel</label>
       <input type="text" id="cfgTable" placeholder="Ventas" />
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:18px 0;">
+
+    <p class="hint" style="margin-bottom:10px;">
+      <b>Dueño del Excel:</b> escribí la ruta del archivo y tocá "Localizar archivo"
+      (tenés que estar logueado). Después compartí el código con tus socios.
+    </p>
+    <div class="field">
+      <label for="cfgFilePath">Ruta del Excel en OneDrive (solo para localizar)</label>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="cfgFilePath" placeholder="/Documentos/libro-de-ventas.xlsx" />
+        <button class="btn-icon" id="cfgResolve" type="button" style="white-space:nowrap;">Localizar</button>
+      </div>
+    </div>
+    <p class="hint" id="cfgFileInfo" style="margin:-6px 0 14px;color:var(--muted);"></p>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:18px 0;">
+
+    <p class="hint" style="margin-bottom:10px;">
+      <b>Socios:</b> pegá acá el código que te pasó el dueño y tocá "Importar".
+    </p>
+    <div class="field">
+      <label for="cfgShareCode">Código de configuración</label>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="cfgShareCode" placeholder="Pegá el código aquí…" />
+        <button class="btn-icon" id="cfgImport" type="button">Importar</button>
+      </div>
+    </div>
+    <div class="field">
+      <button class="btn-ghost" id="cfgCopyCode" type="button" style="width:100%;">Copiar código para mis socios</button>
     </div>
 
     <div class="modal-actions">
@@ -237,7 +264,9 @@
   // En GitHub Pages será https://<usuario>.github.io/libro-de-ventas/
   // Esa URL EXACTA (con la barra final) debe estar registrada como SPA en Azure.
   var REDIRECT_URI = window.location.origin + window.location.pathname;
-  var SCOPES = ["User.Read", "Files.ReadWrite"];
+  // Files.ReadWrite.All es necesario para escribir en un archivo COMPARTIDO por otra
+  // persona (el caso de los socios escribiendo en el Excel del dueño).
+  var SCOPES = ["User.Read", "Files.ReadWrite.All"];
 
   // ---------- DOM ----------
   var $ = function (id) { return document.getElementById(id); };
@@ -337,11 +366,37 @@
 
   // ---------- Graph: agregar fila a la tabla ----------
   function graphAddRowUrl() {
-    // Path absoluto: /me/drive/root:/<ruta>:/workbook/tables/<tabla>/rows/add
-    var path = (config.filePath || "").replace(/^\//, "");
     var table = encodeURIComponent(config.tableName || "Ventas");
+    // Preferido: dirigir el archivo por su ID fijo (driveId + itemId). Así apunta
+    // siempre al MISMO archivo (el del dueño), sin importar quién esté logueado.
+    if (config.driveId && config.itemId) {
+      return "https://graph.microsoft.com/v1.0/drives/" + config.driveId +
+             "/items/" + config.itemId +
+             "/workbook/tables/" + table + "/rows/add";
+    }
+    // Fallback (solo funciona para el dueño): por ruta en su propio OneDrive.
+    var path = (config.filePath || "").replace(/^\//, "");
     return "https://graph.microsoft.com/v1.0/me/drive/root:/" +
            path + ":/workbook/tables/" + table + "/rows/add";
+  }
+
+  // Resuelve una ruta del OneDrive del usuario logueado a driveId + itemId.
+  async function resolveFile(path) {
+    var token = await getToken();
+    if (!token) return null;
+    var clean = path.replace(/^\//, "");
+    var url = "https://graph.microsoft.com/v1.0/me/drive/root:/" + clean;
+    var resp = await fetch(url, { headers: { "Authorization": "Bearer " + token } });
+    if (!resp.ok) {
+      var detail = await resp.text();
+      throw new Error("Graph " + resp.status + ": " + detail);
+    }
+    var item = await resp.json();
+    return {
+      driveId: item.parentReference && item.parentReference.driveId,
+      itemId: item.id,
+      name: item.name
+    };
   }
 
   async function addSaleRow(values) {
@@ -382,8 +437,9 @@
     e.preventDefault();
     clearStatus();
 
-    if (!config.filePath || !config.tableName) {
-      showStatus("Falta configurar la ruta del Excel y/o el nombre de la tabla (⚙).", "err");
+    var haveFile = (config.driveId && config.itemId) || config.filePath;
+    if (!haveFile || !config.tableName) {
+      showStatus("Falta configurar el archivo y/o el nombre de la tabla (⚙).", "err");
       return;
     }
 
@@ -422,10 +478,23 @@
   }
 
   // ---------- Settings modal ----------
+  function renderFileInfo() {
+    var el = $("cfgFileInfo");
+    if (config.driveId && config.itemId) {
+      el.textContent = "✓ Archivo localizado" + (config.fileName ? (": " + config.fileName) : "") + ".";
+      el.style.color = "var(--ok)";
+    } else {
+      el.textContent = "Aún no localizado.";
+      el.style.color = "var(--muted)";
+    }
+  }
+
   function openSettings() {
     $("cfgClientId").value = config.clientId || "";
     $("cfgFilePath").value = config.filePath || "";
     $("cfgTable").value = config.tableName || "";
+    $("cfgShareCode").value = "";
+    renderFileInfo();
     $("settingsModal").classList.add("show");
   }
   function closeSettings() { $("settingsModal").classList.remove("show"); }
@@ -446,6 +515,79 @@
     }
   }
 
+  // Dueño: localizar el archivo por ruta y guardar driveId + itemId.
+  async function onResolve() {
+    if (!account) { alert("Primero iniciá sesión para poder localizar el archivo."); return; }
+    var path = $("cfgFilePath").value.trim();
+    if (!path) { alert("Escribí la ruta del Excel."); return; }
+    var info = $("cfgFileInfo");
+    info.textContent = "Buscando…"; info.style.color = "var(--muted)";
+    try {
+      var r = await resolveFile(path);
+      if (!r) return; // redirigió a login
+      config.clientId = $("cfgClientId").value.trim();
+      config.filePath = path;
+      config.tableName = $("cfgTable").value.trim() || "Ventas";
+      config.driveId = r.driveId;
+      config.itemId = r.itemId;
+      config.fileName = r.name;
+      saveConfig(config);
+      renderFileInfo();
+    } catch (e) {
+      console.error(e);
+      info.textContent = "No se encontró: " + e.message;
+      info.style.color = "var(--err)";
+    }
+  }
+
+  // Dueño: generar un código con lo necesario para que los socios lo importen.
+  function copyShareCode() {
+    if (!config.clientId || !config.driveId || !config.itemId) {
+      alert("Primero cargá el Client ID y localizá el archivo (botón Localizar).");
+      return;
+    }
+    var payload = {
+      clientId: config.clientId,
+      driveId: config.driveId,
+      itemId: config.itemId,
+      tableName: config.tableName || "Ventas",
+      fileName: config.fileName || ""
+    };
+    var code = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+    navigator.clipboard.writeText(code).then(function () {
+      alert("Código copiado. Pasáselo a tus socios (WhatsApp, mail, etc.).");
+    }, function () {
+      window.prompt("Copiá este código y pasáselo a tus socios:", code);
+    });
+  }
+
+  // Socio: importar el código del dueño.
+  function importShareCode() {
+    var code = $("cfgShareCode").value.trim();
+    if (!code) { alert("Pegá el código primero."); return; }
+    try {
+      var data = JSON.parse(decodeURIComponent(escape(atob(code))));
+      var clientChanged = (data.clientId || "") !== (config.clientId || "");
+      config.clientId = data.clientId || "";
+      config.driveId = data.driveId || "";
+      config.itemId = data.itemId || "";
+      config.tableName = data.tableName || "Ventas";
+      config.fileName = data.fileName || "";
+      saveConfig(config);
+      $("cfgClientId").value = config.clientId;
+      $("cfgTable").value = config.tableName;
+      renderFileInfo();
+      if (clientChanged) {
+        alert("Configuración importada. La app se va a recargar; después iniciá sesión.");
+        location.reload();
+      } else {
+        alert("Configuración importada correctamente.");
+      }
+    } catch (e) {
+      alert("El código no es válido. Pedile al dueño que lo genere de nuevo.");
+    }
+  }
+
   // ---------- Wire up ----------
   document.addEventListener("DOMContentLoaded", function () {
     $("fecha").value = todayISO();
@@ -456,6 +598,9 @@
     $("settingsBtn").addEventListener("click", openSettings);
     $("cfgCancel").addEventListener("click", closeSettings);
     $("cfgSave").addEventListener("click", saveSettings);
+    $("cfgResolve").addEventListener("click", onResolve);
+    $("cfgCopyCode").addEventListener("click", copyShareCode);
+    $("cfgImport").addEventListener("click", importShareCode);
     $("settingsModal").addEventListener("click", function (e) {
       if (e.target === $("settingsModal")) closeSettings();
     });

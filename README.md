@@ -49,10 +49,10 @@ Fecha | Producto | Cantidad | Precio | Cliente | Pago | Total
    por ahora vacía o con `http://localhost:8000/` para pruebas locales (se ajusta luego, ver paso 5).
 5. Creá el registro y copiá el **Client ID (ID de aplicación)** que aparece en la página de resumen.
 6. Permisos de API: **Permisos de API › Agregar un permiso › Microsoft Graph › Permisos delegados**, y agregá:
-   - `Files.ReadWrite`
+   - `Files.ReadWrite.All`  ← necesario para que los socios escriban en el Excel del dueño (archivo compartido)
    - `User.Read`
 
-   No hace falta consentimiento de administrador para estos permisos delegados en cuentas personales.
+   Estos permisos delegados **no** requieren consentimiento de administrador.
 
 > Es una app **client-side**: el Client ID es público y va en el código. **No** se usa client secret.
 
@@ -70,6 +70,30 @@ La configuración se guarda en el `localStorage` de tu navegador (no se sube a n
 Al cambiar el Client ID la app se recarga para reinicializar el login.
 
 Después, **Iniciar sesión con Microsoft**, aceptá los permisos, y ya podés registrar ventas.
+
+---
+
+## 3.b. Varios usuarios escribiendo en el mismo Excel (dueño + socios)
+
+El archivo vive en el OneDrive del **dueño**. Para que los socios escriban en **ese mismo
+archivo** (no en el suyo), la app lo direcciona por su **ID fijo** (`driveId` + `itemId`), no por
+"mi OneDrive". El flujo es:
+
+**Dueño (una sola vez):**
+1. Compartí el Excel con cada socio dándole permiso de **edición** (en OneDrive: botón Compartir →
+   agregá sus correos → "Puede editar"). Todos deben ser cuentas del mismo tenant (la ORT).
+2. En la app: cargá el **Client ID**, **iniciá sesión**, abrí ⚙, escribí la **ruta del Excel** y
+   el **nombre de la tabla**, y tocá **"Localizar"**. La app guarda el `driveId`/`itemId` del archivo.
+3. Tocá **"Copiar código para mis socios"** y mandales ese código (WhatsApp, mail, etc.).
+
+**Cada socio (una sola vez):**
+1. Abrí la app (la URL de GitHub Pages), abrí ⚙, pegá el código en **"Código de configuración"**
+   y tocá **"Importar"**. La app se recarga.
+2. **Iniciá sesión** con tu cuenta de la ORT y aceptá los permisos. Listo: ya podés registrar
+   ventas en el Excel del dueño.
+
+> Nota: si un socio ve un error `403 / accessDenied` al guardar, es porque el dueño todavía no le
+> compartió el archivo con permiso de edición (paso 1 del dueño).
 
 ---
 
