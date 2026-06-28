@@ -17,7 +17,7 @@ var TOKEN = 'CAMBIA-ESTE-TOKEN';
 var SHEET_NAME = 'Ventas';
 
 // Encabezados esperados (se crean automáticamente si la hoja está vacía).
-var HEADERS = ['Fecha', 'Producto', 'Cantidad', 'Precio', 'Cliente', 'Pago', 'Total', 'Vendedor', 'Registrado'];
+var HEADERS = ['Fecha', 'Producto', 'Cantidad', 'Precio', 'Cliente', 'Pago', 'Total', 'Responsable', 'Registrado'];
 
 // ---- Formato (podés cambiar estos valores a gusto) ----
 var FMT_MONEDA = '$#,##0.00';        // columnas Precio y Total
