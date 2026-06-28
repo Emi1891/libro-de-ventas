@@ -446,12 +446,13 @@
     $("pagoBtn").classList.toggle("placeholder", !val);
   }
 
-  // Cada vez que se elige una opción de pago.
-  // Seña divide el precio actual ÷2 (cada vez que se toca, incluso si ya estaba).
-  // Escribir/cambiar el precio NO divide: solo lo hace este clic.
+  // Se elige una opción de pago.
+  // Divide ÷2 SOLO al pasar a Seña (no en cada toque). Después podés editar el
+  // precio libremente sin que se vuelva a dividir.
   function elegirPago(val) {
+    var anterior = $("pago").value;
     setPago(val);
-    if (val === "Seña") {
+    if (val === "Seña" && anterior !== "Seña") {
       setPrecio(leerPrecio() / 2);
       recalcTotal();
     }
