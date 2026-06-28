@@ -264,10 +264,15 @@
       body: JSON.stringify(payload),
       redirect: "follow"
     });
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
     var data;
     try { data = await resp.json(); } catch (e) { data = null; }
-    if (!resp.ok) throw new Error("HTTP " + resp.status);
-    if (data && data.ok === false) throw new Error(data.error || "El servidor rechazó la venta");
+    // El backend SIEMPRE devuelve JSON. Si no se pudo leer JSON, casi seguro Google
+    // redirigió a una página de login: la implementación no está como "Cualquier persona".
+    if (!data) {
+      throw new Error("El servidor no respondió bien. Revisá que la implementación del Apps Script esté como \"Quién tiene acceso: Cualquier persona\".");
+    }
+    if (data.ok === false) throw new Error(data.error || "El servidor rechazó la venta");
     return data;
   }
 
